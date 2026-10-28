@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Shipment;
 use App\Models\Sparepart;
+use App\Models\Store;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -14,7 +15,7 @@ class OrderController extends Controller
 {
     /**
      * ============================
-     * LIST ORDER TOKO (LOGIN)
+     * LIST ORDER
      * ============================
      */
     public function index()
@@ -29,7 +30,7 @@ class OrderController extends Controller
 
     /**
      * ============================
-     * BUAT ORDER BARU (DRAFT)
+     * BUAT ORDER BARU
      * ============================
      */
     public function create()
@@ -40,10 +41,10 @@ class OrderController extends Controller
 
     /**
      * ============================
-     * SIMPAN ORDER (HEADER)
+     * SIMPAN ORDER HEADER
      * ============================
      */
-    public function store(Request $request)
+    public function store()
     {
         $order = Order::create([
             'order_code' => 'ORD-' . now()->format('Ymd') . '-' . strtoupper(Str::random(5)),
@@ -53,20 +54,18 @@ class OrderController extends Controller
             'total_weight' => 0,
         ]);
 
-        return redirect()->route('orders.edit', $order->id)
-            ->with('success', 'Order berhasil dibuat');
+        return redirect()->route('orders.edit', $order->id);
     }
 
     /**
      * ============================
-     * FORM TAMBAH ITEM
+     * EDIT ORDER
      * ============================
      */
     public function edit($id)
     {
-        $order = Order::with('items.sparepart')->findOrFail($id);
+        $order = Order::with('items.sparepart', 'shipment')->findOrFail($id);
 
-        // keamanan: pastikan order milik toko sendiri
         if ($order->store_id !== auth()->user()->store_id) {
             abort(403);
         }
@@ -78,7 +77,7 @@ class OrderController extends Controller
 
     /**
      * ============================
-     * TAMBAH ITEM KE ORDER
+     * TAMBAH ITEM
      * ============================
      */
     public function addItem(Request $request, $orderId)
@@ -91,22 +90,18 @@ class OrderController extends Controller
         $order = Order::findOrFail($orderId);
         $sparepart = Sparepart::findOrFail($request->sparepart_id);
 
-        // cek stok
         if ($request->quantity > $sparepart->stock) {
             return back()->with('error', 'Stok tidak mencukupi');
         }
-
-        $totalWeight = $sparepart->weight * $request->quantity;
 
         OrderItem::create([
             'order_id' => $order->id,
             'sparepart_id' => $sparepart->id,
             'quantity' => $request->quantity,
             'unit_weight' => $sparepart->weight,
-            'total_weight' => $totalWeight,
+            'total_weight' => $sparepart->weight * $request->quantity,
         ]);
 
-        // update total berat order
         $this->recalculateTotalWeight($order->id);
 
         return back()->with('success', 'Item berhasil ditambahkan');
@@ -114,58 +109,80 @@ class OrderController extends Controller
 
     /**
      * ============================
-     * HAPUS ITEM
+     * PREVIEW ONGKIR & JARAK
      * ============================
      */
-    public function removeItem($itemId)
+    public function previewCheckout($orderId)
     {
-        $item = OrderItem::findOrFail($itemId);
-        $orderId = $item->order_id;
+        $order = Order::with('items', 'store')->findOrFail($orderId);
 
-        $item->delete();
-        $this->recalculateTotalWeight($orderId);
+        if ($order->items->isEmpty()) {
+            return back()->with('error', 'Order belum memiliki item');
+        }
 
-        return back()->with('success', 'Item dihapus');
+        $supplier = Store::where('type', 'supplier')->first();
+        if (!$supplier || !$supplier->latitude || !$supplier->longitude) {
+            return back()->with('error', 'Lokasi supplier belum ditentukan');
+        }
+
+        if (!$order->store->latitude || !$order->store->longitude) {
+            return back()->with('error', 'Lokasi toko belum ditentukan');
+        }
+
+        $distanceKm = $this->calculateDistanceKm(
+            $supplier->latitude,
+            $supplier->longitude,
+            $order->store->latitude,
+            $order->store->longitude
+        );
+
+        $ongkir = round($distanceKm * 20000);
+
+        Shipment::updateOrCreate(
+            ['order_id' => $order->id],
+            [
+                'distance_km' => round($distanceKm, 2),
+                'shipping_cost' => $ongkir,
+            ]
+        );
+
+        return redirect()
+            ->route('orders.edit', $order->id)
+            ->with('success', 'Jarak & ongkir berhasil dihitung');
     }
 
     /**
      * ============================
-     * CHECKOUT ORDER
+     * CHECKOUT FINAL
      * ============================
      */
-    public function checkout(Request $request, $orderId)
+    public function finalCheckout($orderId)
     {
-        $request->validate([
-            'distance_km' => 'required|numeric|min:1',
-        ]);
+        DB::transaction(function () use ($orderId) {
 
-        DB::transaction(function () use ($orderId, $request) {
-            $order = Order::with('items.sparepart')->findOrFail($orderId);
+            $order = Order::with('items.sparepart', 'shipment')->findOrFail($orderId);
 
-            // ubah status
+            if (!$order->shipment) {
+                throw new \Exception('Hitung ongkir terlebih dahulu');
+            }
+
             $order->update([
                 'status' => 'submitted',
             ]);
 
-            // kurangi stok
             foreach ($order->items as $item) {
                 $item->sparepart->decrement('stock', $item->quantity);
             }
-
-            // buat shipment (fuzzy nanti diisi)
-            Shipment::create([
-                'order_id' => $order->id,
-                'distance_km' => $request->distance_km,
-            ]);
         });
 
-        return redirect()->route('orders.index')
+        return redirect()
+            ->route('orders.index')
             ->with('success', 'Order berhasil di-checkout');
     }
 
     /**
      * ============================
-     * HITUNG ULANG TOTAL BERAT
+     * HITUNG TOTAL BERAT
      * ============================
      */
     private function recalculateTotalWeight($orderId)
@@ -175,5 +192,27 @@ class OrderController extends Controller
         Order::where('id', $orderId)->update([
             'total_weight' => $total,
         ]);
+    }
+
+    /**
+     * ============================
+     * RUMUS HAVERSINE
+     * ============================
+     */
+    private function calculateDistanceKm($lat1, $lng1, $lat2, $lng2)
+    {
+        $earthRadius = 6371;
+
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+
+        $a = sin($dLat / 2) ** 2 +
+        cos(deg2rad($lat1)) *
+        cos(deg2rad($lat2)) *
+        sin($dLng / 2) ** 2;
+
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+        return $earthRadius * $c;
     }
 }

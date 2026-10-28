@@ -13,12 +13,20 @@ class Store extends Model
 
     protected $fillable = [
         'store_code',
+        'type',
         'store_name',
         'owner_name',
         'phone',
         'email',
         'address',
-        'city',
+
+        // lokasi (ID RajaOngkir / Komerce)
+        'province_id',
+        'city_id',
+        'district_id',
+        'subdistrict_id',
+
+        // koordinat
         'latitude',
         'longitude',
     ];

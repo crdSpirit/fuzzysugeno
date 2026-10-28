@@ -18,7 +18,16 @@ class ShipmentController extends Controller
             ->where('store_id', auth()->user()->store_id)
             ->findOrFail($orderId);
 
-        return view('shipments.show', compact('order'));
+        if (!$order->shipment) {
+            return back()->with('error', 'Shipment belum dihitung');
+        }
+
+        return view('shipments.show', [
+            'order' => $order,
+            'shipment' => $order->shipment,
+            'distanceKm' => $order->shipment->distance_km,
+            'shippingCost' => $order->shipment->shipping_cost,
+        ]);
     }
 
     /**
@@ -160,5 +169,33 @@ class ShipmentController extends Controller
         }
 
         return 'Lambat';
+    }
+
+    public function ship($orderId)
+    {
+        $order = Order::with('shipment')->findOrFail($orderId);
+
+        // validasi
+        if (!$order->shipment || !$order->shipment->fuzzy_score) {
+            return back()->with('error', 'Shipment belum diproses fuzzy');
+        }
+
+        if ($order->status !== 'processed') {
+            return back()->with('error', 'Order belum siap dikirim');
+        }
+
+        // update status order
+        $order->update([
+            'status' => 'shipped',
+        ]);
+
+        // optional: simpan waktu kirim
+        $order->shipment->update([
+            'shipped_at' => now(), // kalau kolom ada
+        ]);
+
+        return redirect()
+            ->route('supplier.orders.show', $order->id)
+            ->with('success', 'Barang berhasil dikirim');
     }
 }
