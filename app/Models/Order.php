@@ -23,6 +23,21 @@ class Order extends Model
         'order_date' => 'date',
     ];
 
+    // Scope filters
+    public function scopeFilter($query, array $filters)
+    {
+        $query->when($filters['search'] ?? false, function ($query, $search) {
+            return $query->where(function ($q) use ($search) {
+                $q->where('order_code', 'like', '%' . $search . '%')
+                  ->orWhere('status', 'like', '%' . $search . '%')
+                  ->orWhereHas('store', function ($storeQuery) use ($search) {
+                      $storeQuery->where('store_name', 'like', '%' . $search . '%')
+                                 ->orWhere('city', 'like', '%' . $search . '%');
+                  });
+            });
+        });
+    }
+
     // =====================
     // RELATIONS
     // =====================

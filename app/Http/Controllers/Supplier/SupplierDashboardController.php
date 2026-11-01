@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Supplier;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\Store;
 
 class SupplierDashboardController extends Controller
 {
@@ -27,6 +28,11 @@ class SupplierDashboardController extends Controller
         ));
     }
 
+    public function index()
+    {
+        return view('supplier.index');
+    }
+
     /**
      * ============================
      * LIST ORDER (SORT BY FUZZY)
@@ -34,30 +40,30 @@ class SupplierDashboardController extends Controller
      */
     public function orders()
     {
-        $orders = Order::with(['store', 'shipment'])
-            ->orderByRaw("
-                CASE (
-                    SELECT delivery_decision
-                    FROM shipments
-                    WHERE shipments.order_id = orders.id
-                )
-                    WHEN 'Cepat' THEN 1
-                    WHEN 'Normal' THEN 2
-                    WHEN 'Lambat' THEN 3
-                    ELSE 4
-                END
-            ")
-            ->orderByRaw("
-                (
-                    SELECT fuzzy_score
-                    FROM shipments
-                    WHERE shipments.order_id = orders.id
-                ) DESC
-            ")
-            ->orderBy('orders.created_at', 'ASC')
-            ->get();
-
-        return view('supplier.orders', compact('orders'));
+        // $orders = Order::with(['store', 'shipment'])
+        //     ->orderByRaw("
+        //         CASE (
+        //             SELECT delivery_decision
+        //             FROM shipments
+        //             WHERE shipments.order_id = orders.id
+        //         )
+        //             WHEN 'Cepat' THEN 1
+        //             WHEN 'Normal' THEN 2
+        //             WHEN 'Lambat' THEN 3
+        //             ELSE 4
+        //         END
+        //     ")
+        //     ->orderByRaw("
+        //         (
+        //             SELECT fuzzy_score
+        //             FROM shipments
+        //             WHERE shipments.order_id = orders.id
+        //         ) DESC
+        //     ")
+        //     ->orderBy('orders.created_at', 'ASC')
+        //     ->get();
+        $stores = Store::all();
+        return view('supplier.orders_datatable',compact('stores'));
     }
 
     /**
