@@ -79,6 +79,7 @@
                                         </span>
                                     </a>
                                 </li>
+                                @yield('ext-menu')
                             </ul>
                         </div>
                     </div>
