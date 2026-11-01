@@ -1,5 +1,17 @@
 @extends('layouts.app')
 
+@section('ext-menu')
+@if(auth()->user()->isSupplier())
+<li class="nav-item {{ request()->is('spareparts') ? 'active' : '' }}">
+    <a href="/spareparts" class="nav-link ">
+        <span class="nav-link-icon d-md-none d-lg-inline-block">
+        </span>
+        <span class="nav-link-title">Data Produk</span>
+    </a>
+</li>
+@endif
+@endsection
+
 @section('content')
     <div class="container py-4">
 
