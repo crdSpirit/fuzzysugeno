@@ -4,8 +4,10 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ShipmentController;
+use App\Http\Controllers\SparepartController;
 use App\Http\Controllers\StoreProfileController;
 use App\Http\Controllers\Supplier\SupplierDashboardController;
+use App\Http\Controllers\DatatablesController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -64,24 +66,43 @@ Route::middleware('auth')->group(function () {
     | SUPPLIER (TOKO PUSAT)
     |--------------------------------------------------------------------------
      */
-    Route::middleware('role:supplier_admin,supplier_staff')->prefix('supplier')->name('supplier.')->group(function () {
+    Route::middleware('role:supplier_admin,supplier_staff')->group(function () {
 
-        // DASHBOARD
-        Route::get('/dashboard', [SupplierDashboardController::class, 'dashboard'])
-            ->name('dashboard');
+        Route::get('/spareparts', [SparepartController::class, 'index'])->name('spareparts.index');
+        Route::get('/spareparts/data', [SparepartController::class, 'getData'])->name('spareparts.data');
+        Route::post('/spareparts', [SparepartController::class, 'store'])->name('spareparts.store');
+        Route::get('/spareparts/{id}', [SparepartController::class, 'show'])->name('spareparts.show');
+        Route::put('/spareparts/{id}', [SparepartController::class, 'update'])->name('spareparts.update');
+        Route::delete('/spareparts/{id}', [SparepartController::class, 'destroy'])->name('spareparts.destroy');
 
-        // ORDER MASUK
-        Route::get('/orders', [SupplierDashboardController::class, 'orders'])
-            ->name('orders');
+        // Singular fuzzy each row
+        Route::post('/shipments/{orderId}/fuzzy',[DatatablesController::class,'fuzzyCounts'])->name('shipments.fuzzy');
 
-        Route::get('/orders/{order}', [SupplierDashboardController::class, 'show'])
-            ->name('orders.show');
 
-        // SHIPMENT + FUZZY
-        Route::post('/shipments/{order}/process', [ShipmentController::class, 'process'])
-            ->name('shipments.process');
+        // Datatables with sort & filters
+        Route::get('/orders-data', [DatatablesController::class,'shipments'])->name('shipments.data');
 
+
+        // Supplier routes
+        Route::prefix('supplier')->name('supplier.')->group(function () {
+
+            // DASHBOARD
+            Route::get('/dashboard', [SupplierDashboardController::class, 'dashboard'])
+                ->name('dashboard');
+
+            // ORDER MASUK
+            Route::get('/orders', [SupplierDashboardController::class, 'orders'])
+                ->name('orders');
+            Route::get('/orders/{order}', [SupplierDashboardController::class, 'show'])
+                ->name('orders.show');
+
+            // SHIPMENT + FUZZY
+            Route::post('/shipments/{order}/process', [ShipmentController::class, 'process'])
+                ->name('shipments.process');
+        });
     });
+
+
     Route::post(
         '/supplier/shipments/{order}/ship',
         [ShipmentController::class, 'ship']
