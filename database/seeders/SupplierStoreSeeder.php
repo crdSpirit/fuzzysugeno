@@ -15,15 +15,15 @@ class SupplierStoreSeeder extends Seeder
         if (!$supplier) {
             Store::create([
                 'store_code' => 'SUP-001',
-                'store_name' => 'PT Supplier Ban Nusantara',
+                'store_name' => 'PT Jateng Top',
                 'type' => 'supplier',
                 'owner_name' => 'Direktur Utama',
                 'phone' => '0218889999',
-                'email' => 'supplier@ban-nusantara.co.id',
+                'email' => 'supplier@jatengtop.id',
                 'address' => 'Jl. Industri Raya No. 1',
-                'city' => 'Jakarta',
-                'latitude' => -6.200000,
-                'longitude' => 106.816666,
+                'city' => 'Semarang',
+                'latitude' => -7.008493,
+                'longitude' => 110.468946,
             ]);
         }
     }

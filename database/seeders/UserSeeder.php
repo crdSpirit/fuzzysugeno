@@ -55,6 +55,16 @@ class UserSeeder extends Seeder
                 'store_id' => $toko3?->id,
                 'role' => 'customer_admin',
             ],
+            // =====================
+            // TOKO 4
+            // =====================
+            [
+                'name' => 'Admin Ban Jaya Abadi',
+                'email' => 'jaya@bja.id',
+                'password' => Hash::make('qwe123'),
+                'store_id' => $toko4?->id,
+                'role' => 'customer_admin',
+            ],
         ];
 
         foreach ($users as $user) {

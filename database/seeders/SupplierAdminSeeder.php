@@ -18,12 +18,12 @@ class SupplierAdminSeeder extends Seeder
         }
 
         // Cegah duplikasi admin
-        $exists = User::where('email', 'admin@supplier.com')->exists();
+        $exists = User::where('email', 'supplier@jatengtop.id')->exists();
 
         if (!$exists) {
             User::create([
                 'name' => 'Supplier Admin',
-                'email' => 'admin@supplier.com',
+                'email' => 'supplier@jatengtop.id',
                 'password' => Hash::make('password'),
                 'store_id' => $supplier->id,
                 'role' => 'supplier_admin',

@@ -46,6 +46,19 @@ class StoreSeeder extends Seeder
                 'latitude' => -7.250445,
                 'longitude' => 112.768845,
             ],
+            [
+                'store_code' => 'TOKO-004',
+                'store_name' => 'PT Ban Jaya Abadi',
+                'type' => 'customer',
+                'owner_name' => 'Jaya',
+                'phone' => '081234567890123',
+                'email' => 'admin@bja.id',
+                'address' => 'Jalan Kijang I, RW 05, Gayamsari, Semarang, Central Java, 50248, Indonesia',
+                'city' => 'Semarang',
+                'latitude' => -6.996758,
+                'longitude' => 110.446458,
+            ],
+
         ];
 
         foreach ($stores as $store) {
