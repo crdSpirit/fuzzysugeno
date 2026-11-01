@@ -47,38 +47,7 @@ class ShipmentController extends Controller
             abort(404, 'Shipment tidak ditemukan');
         }
 
-        // ============================
-        // INPUT FUZZY
-        // ============================
-        $distance = $order->shipment->distance_km;
-
-        /**
-         * Ambil fuzzy_weight_value tertinggi
-         * (ban terberat menentukan pengiriman)
-         */
-        $barangValue = $order->items
-            ->max(fn($item) => $item->sparepart->fuzzy_weight_value);
-
-        // ============================
-        // HITUNG FUZZY SUGENO
-        // ============================
-        $fuzzyScore = $this->fuzzySugeno($barangValue, $distance);
-        $decision = $this->decision($fuzzyScore);
-
-        // ============================
-        // SIMPAN HASIL
-        // ============================
-        $order->shipment->update([
-            'fuzzy_score' => $fuzzyScore,
-            'delivery_decision' => $decision,
-        ]);
-
-        // ============================
-        // UPDATE STATUS ORDER
-        // ============================
-        $order->update([
-            'status' => 'processed',
-        ]);
+        $order = $this->calculate($order);
 
         // ============================
         // REDIRECT KE DETAIL ORDER SUPPLIER
@@ -169,6 +138,47 @@ class ShipmentController extends Controller
         }
 
         return 'Lambat';
+    }
+    public function calculate($order)
+    {
+
+        // ============================
+        // INPUT FUZZY
+        // ============================
+        $distance = $order->shipment->distance_km;
+
+        // if distance < 100km , distance = 0;
+
+
+        /**
+         * Ambil fuzzy_weight_value tertinggi
+         * (ban terberat menentukan pengiriman)
+         */
+        $barangValue = $order->items
+            ->max(fn($item) => $item->sparepart->fuzzy_weight_value);
+
+        // ============================
+        // HITUNG FUZZY SUGENO
+        // ============================
+        $fuzzyScore = $this->fuzzySugeno($barangValue, $distance);
+        $decision = $this->decision($fuzzyScore);
+
+        // ============================
+        // SIMPAN HASIL
+        // ============================
+        $order->shipment->update([
+            'fuzzy_score' => $fuzzyScore,
+            'delivery_decision' => $decision,
+        ]);
+
+        // ============================
+        // UPDATE STATUS ORDER
+        // ============================
+        $order->update([
+            'status' => 'processed',
+        ]);
+
+        return $order;
     }
 
     public function ship($orderId)
